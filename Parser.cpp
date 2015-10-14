@@ -12,16 +12,16 @@ using namespace std;
 
 struct thread{
     string name;
-    int pid;
-    int cpu;
+    string pid;
+    
+    int cpu; // still needs to be parsed
     float curUpTime, prevUpTime;
     thread():curUpTime(0), prevUpTime(0){};
 };
 
 struct process{
     string name;
-    int pid;
-    int cpu;
+    string pid;
     vector<thread> threads;
     process* parent;
 };
@@ -33,6 +33,17 @@ bool isInteger(const string & s)
    return (*p == 0) ;
 }
 
+// Fetch the uptime from the stat file in the location passed as an argument
+float getUpTime(const string& path)
+{
+    ifstream inputFile(path.c_str());
+    for (int i=0; i<13; i++) inputFile.ignore(10000, ' ');
+    float utime, stime, cutime, cstime;
+    inputFile >> utime >> stime >> cutime >> cstime;
+    return utime + stime + cutime + cstime;
+}
+
+// Parse the thread stat file and get the relevant information needed
 thread getThreadInfo(const string& path)
 {
     thread t;
@@ -51,47 +62,68 @@ process getProcessInfo(const string& path)
     process info;
     ifstream inputFile((path + string("/stat")).c_str());
     inputFile >> info.pid >> info.name;
-    /*
-    for(int i=0; i<11; i++) inputFile.ignore(10000, ' ');
-    float utime, stime, cutime, cstime;
-    inputFile >> utime >> stime >> cutime >> cstime;
-    info.curUpTime = utime + stime + cutime + cstime;
-    */
-    
+
     // Parse the threads of the process and push them in the process struct
     struct dirent *pDirent;
     DIR *pDir;
     string taskPath = path + string("/task/");
     pDir = opendir (taskPath.c_str());
-    while ((pDirent = readdir(pDir)) != NULL) {
-        if (isInteger(pDirent->d_name))
-        {
-            printf ("[%s]\n", pDirent->d_name);
-            thread t = getThreadInfo((taskPath + string(pDirent->d_name)).c_str());
-            cout << "Thread: " << t.pid << ' ' << t.name << ' ' << t.curUpTime << endl;
-        }
-        
-    }
+    while ((pDirent = readdir(pDir)) != NULL) 
+        if (isInteger(pDirent->d_name)) 
+            info.threads.push_back(getThreadInfo((taskPath + string(pDirent->d_name)).c_str()));
+            
     return info;
 }
 
-int main() {
+
+// Returns an updated list of the existing processes
+vector<process> refreshProcesses()
+{
+    vector<process> existingProcesses;
     struct dirent *pDirent;
     DIR *pDir;
-
     pDir = opendir ("/proc");
-
-    while ((pDirent = readdir(pDir)) != NULL) {
-        if (isInteger(pDirent->d_name))
+    while ((pDirent = readdir(pDir)) != NULL) 
+    {
+        if (isInteger(pDirent->d_name)) 
         {
             string path = "/proc/";
             path.append(pDirent->d_name);
-            process p = getProcessInfo(path);
-            cout << "Belong to Process: " << p.pid << ' ' <<  p.name << endl;  
-            cout << endl << endl;
+            existingProcesses.push_back(getProcessInfo(path));
         }
     }
     closedir (pDir);
+    return existingProcesses;
+}
 
+
+int main() {
+    vector<process> existingProcesses = refreshProcesses();
+    while (true)
+    {
+        // The actual number we want is curUpTime - prevUpTime which I calculate bellow
+        // That's the time the thread has been running for the past second
+        // We need to monitor the running time of each thread of the process 
+        // To find out the total time the process has run on each cpu
+        // We can't just monitor the process itself because each of its
+        // Threads might be running on a separate cpu
+        // Note: I have not parsed the cpu information (how many cpus there are, their running time (calculated as curUpTime - prevUpTime), etc...)
+        //          Or which cpu each thread is running on, we will need both
+        
+        // Updates the uptimes of the existingProcesses
+        for (int i=0; i<existingProcesses.size(); i++)
+        {
+            for (int j=0; j<existingProcesses[i].threads.size(); j++)
+            {
+                string path = "/proc/" + existingProcesses[i].pid + "/task/" + existingProcesses[i].threads[j].pid + "/stat";
+                swap(existingProcesses[i].threads[j].curUpTime, existingProcesses[i].threads[j].prevUpTime);
+                existingProcesses[i].threads[j].curUpTime = getUpTime(path);
+                cout << existingProcesses[i].threads[j].pid << ' ' << existingProcesses[i].threads[j].curUpTime - existingProcesses[i].threads[j].prevUpTime << endl;
+            }
+            cout << endl;
+        }
+        
+        sleep(1);
+    }
     return 0;
 }
