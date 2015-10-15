@@ -31,6 +31,8 @@ vector<process> refreshProcesses();
 
 void updateProcessData(vector<process>& existingProcesses);
 
+vector<int> getProcessCPULoad(int index);
+
 
 int main() {
     int hertz = sysconf(_SC_CLK_TCK);
