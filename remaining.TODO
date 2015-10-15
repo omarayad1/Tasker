@@ -1,0 +1,8 @@
+- parse the cpu the thread is running on
+- calculate process running time on each cpu from its threads
+- parse the cpu running time in seconds
+- calculate load by dividing "threadRunningTimeInSeconds" by the cpu running time in seconds
+- create header file
+- create interface file to bind the cpp code
+- add a Makefile
+- user interface
