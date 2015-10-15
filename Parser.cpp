@@ -115,7 +115,7 @@ void updateProcessData(vector<process>& existingProcesses)
     }
 }
 
-vector<int> getProcessCPULoad(int index)
+vector<int> getProcessCPULoad(vector<process>& existingProcesses, int index)
 {
     vector<int> CPULoad;
     CPULoad.push_back(0.1);
