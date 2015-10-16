@@ -17,7 +17,8 @@ struct thread{
     string name;
     string pid;
     
-    int cpu; // still needs to be parsed
+    int cpu;
+    int usagePercentage;
     unsigned long curUpTime, prevUpTime;
     thread():curUpTime(0), prevUpTime(0){};
 };
@@ -29,11 +30,82 @@ struct process{
     vector<thread> threads;
 };
 
+struct cpu {
+    string name;
+    float usagePercentage;
+    unsigned long totalTime, prevTotalTime, idleTime, prevIdleTime;
+    cpu(): totalTime(0), prevTotalTime(0), idleTime(0), prevIdleTime(0) {};
+};
+
+string exec(string cmd) {
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if (!pipe) return "ERROR";
+    char buffer[128];
+    std::string result = "";
+    while (!feof(pipe)) {
+        if (fgets(buffer, 128, pipe) != NULL)
+            result += buffer;
+    }
+    pclose(pipe);
+    return result;
+}
+
 bool isInteger(const string & s)
 {
    char * p ;
    strtol(s.c_str(), &p, 10);
    return (*p == 0) ;
+}
+
+std::vector<cpu> refreshCPU() {
+    ifstream inputFile("/proc/stat");
+    std::vector<cpu> cpus;
+    cout << "Get CPUs: " << endl;
+    unsigned long t_user, t_nice, t_system, t_idle, t_iowait, t_irq, t_softirq, t_steal, t_guest, t_guest_nice, t_nonIdle;
+    
+    while(true) {
+        cpu c;
+        inputFile >> c.name;
+        cout << "name: " << c.name << "-" << c.name.substr(0,3) << endl;
+        if(c.name.substr(0,3) != "cpu") break;
+        inputFile >> t_user >> t_nice >> t_system >> t_idle >> t_iowait >> t_irq >> t_softirq >> t_steal >> t_guest >> t_guest_nice;
+        c.idleTime = t_idle + t_iowait;
+        t_nonIdle = t_user + t_nice + t_system + t_irq + t_softirq + t_steal;
+        c.totalTime = c.idleTime + t_nonIdle;
+        cpus.push_back(c);
+    }
+    
+    return cpus;
+}
+
+void updateCPUData(std::vector<cpu>& cpus) {
+    ifstream inputFile("/proc/stat");
+    unsigned long t_user, t_nice, t_system, t_idle, t_iowait, t_irq, t_softirq, t_steal, t_guest, t_guest_nice, t_nonIdle, idx, delta_total, delta_idle;
+    cout << "Core Count: " << cpus.size() << endl;
+    
+    for (int idx = 0; idx < cpus.size(); idx++) {
+        inputFile >> cpus[idx].name;
+        
+        cout << "CPU: " << cpus[idx].name << ", ";
+        
+        cpus[idx].prevIdleTime = cpus[idx].idleTime;
+        cpus[idx].prevTotalTime = cpus[idx].totalTime;
+        
+        inputFile >> t_user >> t_nice >> t_system >> t_idle >> t_iowait >> t_irq >> t_softirq >> t_steal >> t_guest >> t_guest_nice;
+        
+        cpus[idx].idleTime = t_idle + t_iowait;
+        t_nonIdle = t_user + t_nice + t_system + t_irq + t_softirq + t_steal;
+        cpus[idx].totalTime = cpus[idx].idleTime + t_nonIdle;
+        
+        delta_total = cpus[idx].totalTime - cpus[idx].prevTotalTime;
+        delta_idle = cpus[idx].idleTime - cpus[idx].prevIdleTime;
+        
+        cout << "total: " << delta_total << ", idle: " << delta_idle << ", ";
+        
+        cpus[idx].usagePercentage = (delta_total - delta_idle)/(delta_total*1.0);
+        
+        cout << "percentage: " << cpus[idx].usagePercentage * 100 << "%" << endl;
+    }
 }
 
 // Fetch the uptime from the stat file in the location passed as an argument
@@ -46,13 +118,19 @@ float getUpTime(const string& path)
     return utime + stime + cutime + cstime;
 }
 
+// Fetch the uptime from the stat file in the location passed as an argument
+int getCPU(const string& path)
+{
+    return atoi(exec(string("cat ").append(path).append(" | cut -d \\  -f 39")).c_str());
+}
+
 // Parse the thread stat file and get the relevant information needed
 thread getThreadInfo(const string& path)
 {
     thread t;
     ifstream inputFile((path + string("/stat")).c_str());
-    inputFile >> t.pid >> t.name;
-    for(int i=0; i<11; i++) inputFile.ignore(10000, ' ');
+    inputFile >> t.pid >> t.name; //are these the first 2 entries in the file???
+    for(int i=0; i<13; i++) inputFile.ignore(10000, ' ');
     unsigned long utime, stime, cutime, cstime;
     inputFile >> utime >> stime >> cutime >> cstime;
     t.curUpTime = utime + stime + cutime + cstime;
@@ -78,7 +156,6 @@ process getProcessInfo(const string& path)
     return info;
 }
 
-
 // Returns an updated list of the existing processes
 vector<process> refreshProcesses()
 {
@@ -86,7 +163,7 @@ vector<process> refreshProcesses()
     struct dirent *pDirent;
     DIR *pDir;
     pDir = opendir ("/proc");
-    while ((pDirent = readdir(pDir)) != NULL) 
+    while ((pDirent = readdir(pDir)) != NULL)
     {
         if (isInteger(pDirent->d_name)) 
         {
@@ -108,8 +185,9 @@ void updateProcessData(vector<process>& existingProcesses)
             string path = "/proc/" + existingProcesses[i].pid + "/task/" + existingProcesses[i].threads[j].pid + "/stat";
             swap(existingProcesses[i].threads[j].curUpTime, existingProcesses[i].threads[j].prevUpTime);
             existingProcesses[i].threads[j].curUpTime = getUpTime(path);
-            unsigned double threadRunningTimeInSeconds = (existingProcesses[i].threads[j].curUpTime - existingProcesses[i].threads[j].prevUpTime)/(hertz*1.0);
-            cout << existingProcesses[i].threads[j].pid << ' ' << threadRunningTimeInSeconds << endl;
+            existingProcesses[i].threads[j].cpu = getCPU(path); // Just in case the OS moves the thread from one core to another
+            double threadRunningTimeInSeconds = (existingProcesses[i].threads[j].curUpTime - existingProcesses[i].threads[j].prevUpTime)/(hertz*1.0);
+            cout << existingProcesses[i].threads[j].pid << ' ' << threadRunningTimeInSeconds << ' ' << existingProcesses[i].threads[j].cpu << endl;
         }
         cout << endl;
     }
@@ -128,10 +206,14 @@ vector<int> getProcessCPULoad(vector<process>& existingProcesses, int index)
     return CPULoad;
 }
 
-
-
 int main() {
     vector<process> existingProcesses = refreshProcesses();
+    std::vector<cpu> existingCPU = refreshCPU();
+    
+    for (int i = 0; i < existingCPU.size(); i++) {
+        cout << existingCPU[i].name << ", idle= " << existingCPU[i].idleTime << ", total= " << existingCPU[i].totalTime << endl;
+    }
+    
     while (true)
     {
         // The actual number we want is curUpTime - prevUpTime which I calculate bellow
@@ -145,6 +227,8 @@ int main() {
         
         // Updates the uptimes of the existingProcesses
         updateProcessData(existingProcesses);
+        updateCPUData(existingCPU);
+        
         sleep(1);
     }
     return 0;

@@ -14,7 +14,8 @@ using namespace std;
 
 
 extern int hertz;
-struct thread, process;
+struct thread;
+struct process;
 
 bool isInteger(const string & s);
 
