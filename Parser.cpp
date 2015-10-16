@@ -108,7 +108,7 @@ void updateProcessData(vector<process>& existingProcesses)
             string path = "/proc/" + existingProcesses[i].pid + "/task/" + existingProcesses[i].threads[j].pid + "/stat";
             swap(existingProcesses[i].threads[j].curUpTime, existingProcesses[i].threads[j].prevUpTime);
             existingProcesses[i].threads[j].curUpTime = getUpTime(path);
-            unsigned double threadRunningTimeInSeconds = (existingProcesses[i].threads[j].curUpTime - existingProcesses[i].threads[j].prevUpTime)/(hertz*1.0);
+            double threadRunningTimeInSeconds = (existingProcesses[i].threads[j].curUpTime - existingProcesses[i].threads[j].prevUpTime)/(hertz*1.0);
             cout << existingProcesses[i].threads[j].pid << ' ' << threadRunningTimeInSeconds << endl;
         }
         cout << endl;

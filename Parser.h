@@ -14,8 +14,8 @@ using namespace std;
 
 
 extern int hertz;
-struct thread, process;
-
+struct thread;
+struct process;
 bool isInteger(const string & s);
 
 // Fetch the uptime from the stat file in the location passed as an argument
