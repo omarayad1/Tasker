@@ -1,4 +1,5 @@
 #include <iostream>
+#include <sstream>
 #include <fstream>
 #include <cstdlib>
 #include <string>
@@ -8,6 +9,7 @@
 #include <dirent.h>
 #include <unistd.h>
 #include "Parser.h"
+
 using namespace std;
 
 
@@ -18,7 +20,7 @@ struct thread{
     string pid;
     
     int cpu;
-    int usagePercentage;
+    float usagePercentage;
     unsigned long curUpTime, prevUpTime;
     thread():curUpTime(0), prevUpTime(0){};
 };
@@ -102,19 +104,37 @@ void updateCPUData(std::vector<cpu>& cpus) {
         
         cout << "total: " << delta_total << ", idle: " << delta_idle << ", ";
         
-        cpus[idx].usagePercentage = (delta_total - delta_idle)/(delta_total*1.0);
+        cpus[idx].usagePercentage = delta_total == 0 ? 0 : (delta_total - delta_idle)/(delta_total*1.0);
         
         cout << "percentage: " << cpus[idx].usagePercentage * 100 << "%" << endl;
     }
 }
 
 // Fetch the uptime from the stat file in the location passed as an argument
-float getUpTime(const string& path)
+float getUpTime(const string& path, int& cpu)
 {
     ifstream inputFile(path.c_str());
-    for (int i=0; i<13; i++) inputFile.ignore(10000, ' ');
+    string tmp;
+    /*
+    NOTE: We had a bug here. Some process names are like '(vfs-worker {"pi)' (they do have spaces, and therefore, we get the wrong time, or cpu).
+    Therefore, a workaround is to match the status character (in pos 3 -- http://man7.org/linux/man-pages/man5/proc.5.html),
+    Thus, we will keep parsing untill we hit the status character, and then fallback to the original way Youssef came up with.
+    (Also, we will ignore 10 positions )
+    - Yehia & Safaa
+    */
+    int x = 0;
+    do {
+        x++;
+        inputFile >> tmp;
+        // std::cout <<  tmp << std::endl;
+    } while(tmp != "R" &&tmp != "S" &&tmp != "D" &&tmp != "Z" &&tmp != "T" &&tmp != "t" &&tmp != "W" &&tmp != "X" &&tmp != "x" &&tmp != "K" &&tmp != "P");
+        
+    for (int i=0; i<10; i++) inputFile.ignore(10000, ' ');
     unsigned long utime, stime, cutime, cstime;
     inputFile >> utime >> stime >> cutime >> cstime;
+    for (int i=0; i<23; i++) inputFile.ignore(10000, ' ');
+    inputFile >> cpu;
+    cout << "CPU: " << cpu << endl;
     return utime + stime + cutime + cstime;
 }
 
@@ -130,7 +150,7 @@ thread getThreadInfo(const string& path)
     thread t;
     ifstream inputFile((path + string("/stat")).c_str());
     inputFile >> t.pid >> t.name; //are these the first 2 entries in the file???
-    for(int i=0; i<13; i++) inputFile.ignore(10000, ' ');
+    for (int i=0; i<10; i++) inputFile.ignore(10000, ' ');
     unsigned long utime, stime, cutime, cstime;
     inputFile >> utime >> stime >> cutime >> cstime;
     t.curUpTime = utime + stime + cutime + cstime;
@@ -176,7 +196,7 @@ vector<process> refreshProcesses()
     return existingProcesses;
 }
 
-void updateProcessData(vector<process>& existingProcesses)
+void updateProcessData(vector<process>& existingProcesses, std::vector<cpu> cpus)
 {
     for (int i=0; i<existingProcesses.size(); i++)
     {
@@ -184,25 +204,34 @@ void updateProcessData(vector<process>& existingProcesses)
         {
             string path = "/proc/" + existingProcesses[i].pid + "/task/" + existingProcesses[i].threads[j].pid + "/stat";
             swap(existingProcesses[i].threads[j].curUpTime, existingProcesses[i].threads[j].prevUpTime);
-            existingProcesses[i].threads[j].curUpTime = getUpTime(path);
-            existingProcesses[i].threads[j].cpu = getCPU(path); // Just in case the OS moves the thread from one core to another
-            double threadRunningTimeInSeconds = (existingProcesses[i].threads[j].curUpTime - existingProcesses[i].threads[j].prevUpTime)/(hertz*1.0);
-            cout << existingProcesses[i].threads[j].pid << ' ' << threadRunningTimeInSeconds << ' ' << existingProcesses[i].threads[j].cpu << endl;
+            int _cpu;
+            existingProcesses[i].threads[j].curUpTime = getUpTime(path, _cpu);
+            existingProcesses[i].threads[j].cpu = _cpu;
+            /*
+            YOUSSEF: Why do we need to divide by hertz? (I assume all inputs from files are of the same type/unit?)
+            */
+            double threadRunningTimeInSeconds = (existingProcesses[i].threads[j].curUpTime - existingProcesses[i].threads[j].prevUpTime);
+            existingProcesses[i].threads[j].usagePercentage = threadRunningTimeInSeconds / ((cpus[_cpu+1].totalTime - cpus[_cpu+1].idleTime)*1.0);
+            cout << "name= " << existingProcesses[i].threads[j].name << ", pid= " << existingProcesses[i].threads[j].pid << ", time= " << threadRunningTimeInSeconds << "s, cpu= " << existingProcesses[i].threads[j].cpu << ", usage= " << existingProcesses[i].threads[j].usagePercentage*100 << "%" << endl;
         }
-        cout << endl;
     }
 }
 
-vector<int> getProcessCPULoad(vector<process>& existingProcesses, int index)
+vector<int> getProcessCPULoad(vector<process>& existingProcesses, std::vector<cpu> cpus, int index)
 {
+    cout << "Name= " << existingProcesses[index].name << endl;
     vector<int> CPULoad;
-    CPULoad.push_back(0.1);
-    CPULoad.push_back(0.2);
-    CPULoad.push_back(0.3);
-    CPULoad.push_back(0.4);
-    CPULoad.push_back(0.5);
-    CPULoad.push_back(0.6);
-    CPULoad.push_back(0.7);
+    for (int i = 0; i < cpus.size(); i++) {
+        double totalProcessCoreTime = 0;
+        for (int j = 0; j < existingProcesses[index].threads.size(); j++) {
+            ostringstream ss;
+            ss << "cpu" << existingProcesses[index].threads[j].cpu;
+            if(cpus[i].name == ss.str()) {
+                totalProcessCoreTime += (existingProcesses[index].threads[j].curUpTime - existingProcesses[index].threads[j].prevUpTime);
+            }
+        }
+        CPULoad.push_back(totalProcessCoreTime/(cpus[i].totalTime-cpus[i].idleTime));
+    }
     return CPULoad;
 }
 
@@ -214,8 +243,10 @@ int main() {
         cout << existingCPU[i].name << ", idle= " << existingCPU[i].idleTime << ", total= " << existingCPU[i].totalTime << endl;
     }
     
-    while (true)
+    int x = 0;
+    while (x < 2)
     {
+        x++;
         // The actual number we want is curUpTime - prevUpTime which I calculate bellow
         // That's the time the thread has been running for the past second
         // We need to monitor the running time of each thread of the process 
@@ -226,10 +257,21 @@ int main() {
         //          Or which cpu each thread is running on, we will need both
         
         // Updates the uptimes of the existingProcesses
-        updateProcessData(existingProcesses);
+        
+        
+        /*
+        NOTE: We need to load CPU stats before the process, in order to calculate the process usage in the past second, not the one before. 
+        */
         updateCPUData(existingCPU);
+        updateProcessData(existingProcesses, existingCPU);
         
         sleep(1);
     }
+    
+    std::vector<int> cpu_load = getProcessCPULoad(existingProcesses, existingCPU, 5);
+    for (int i = 0; i < cpu_load.size(); i++) {
+        cout << "cpu" << i << ": " << cpu_load[i] << "%" << endl;
+    }
+    
     return 0;
 }
