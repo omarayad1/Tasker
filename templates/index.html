@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Tasker | Overall</title>
+	<link rel="stylesheet" type="text/css" href="/static/bower_components/bootstrap/dist/css/bootstrap.min.css">
+	<link rel="stylesheet" type="text/css" href="/static/bower_components/bootstrap/dist/css/bootstrap-theme.min.css">
+</head>
+<body>
+
+<h1>Overall Stats</h1>
+<div class="list-group col-md-3">
+  <a href="/" class="list-group-item active">
+  <span class="badge">{{data|length}}</span>
+    Overall 
+  </a>
+  {% for process in data %}
+	<a href="/process/{{process.pid}}" class="list-group-item">
+	<span class="badge">{{process.threads}}</span>
+	{{ process.name }}</a>
+  {% endfor %}
+</div>
+
+
+<script type="text/javascript" src="/static/bower_components/jquery/dist/jquery.min.js"></script>
+<script type="text/javascript" src="/static/bower_components/bootstrap/dist/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="/static/bower_components/d3/d3.min.js"></script>
+</body>
+</html>

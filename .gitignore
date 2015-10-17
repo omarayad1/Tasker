@@ -141,7 +141,7 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
-
+Parser.py
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
@@ -186,4 +186,12 @@ target/
 [Ss]cripts
 pyvenv.cfg
 pip-selfcheck.json
+
+# Created by https://www.gitignore.io/api/bower
+
+### Bower ###
+bower_components
+.bower-cache
+.bower-registry
+.bower-tmp
 

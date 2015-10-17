@@ -1,0 +1,23 @@
+{
+  "name": "Tasker",
+  "homepage": "https://github.com/omarayad1/Tasker",
+  "authors": [
+    "Omar H. Ayad <omarayad1@gmail.com>"
+  ],
+  "description": "",
+  "main": "",
+  "moduleType": [],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "bootstrap": "~3.3.5",
+    "jquery": "~2.1.4",
+    "d3": "~3.5.6"
+  }
+}
