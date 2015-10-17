@@ -56,9 +56,11 @@ std::vector<cpu> refreshCPU() {
     return cpus;
 }
 
-void updateCPUData(std::vector<cpu>& cpus) {
+std::vector<cpu_data> updateCPUData(std::vector<cpu>& cpus) {
     ifstream inputFile("/proc/stat");
     unsigned long t_user, t_nice, t_system, t_idle, t_iowait, t_irq, t_softirq, t_steal, t_guest, t_guest_nice, t_nonIdle, idx, delta_total, delta_idle;
+    std::vector<cpu_data> data;
+    struct cpu_data element;
     cout << "Core Count: " << cpus.size() << endl;
     
     for (int idx = 0; idx < cpus.size(); idx++) {
@@ -83,7 +85,10 @@ void updateCPUData(std::vector<cpu>& cpus) {
         cpus[idx].usagePercentage = delta_total == 0 ? 0 : (delta_total - delta_idle)/(delta_total*1.0);
         
         cout << "percentage: " << cpus[idx].usagePercentage * 100 << "%" << endl;
+        element = {.name=cpus[idx].name, .total=delta_total, .idle=delta_idle, .usage=cpus[idx].usagePercentage * 100};
+        data.push_back(element);
     }
+    return data;
 }
 
 // Fetch the uptime from the stat file in the location passed as an argument
@@ -172,8 +177,10 @@ vector<process> refreshProcesses()
     return existingProcesses;
 }
 
-void updateProcessData(vector<process>& existingProcesses, std::vector<cpu> cpus)
+std::vector<process_data> updateProcessData(vector<process>& existingProcesses, std::vector<cpu> cpus)
 {
+    struct process_data element;
+    std::vector<process_data> data;
     for (int i=0; i<existingProcesses.size(); i++)
     {
         for (int j=0; j<existingProcesses[i].threads.size(); j++)
@@ -189,8 +196,11 @@ void updateProcessData(vector<process>& existingProcesses, std::vector<cpu> cpus
             double threadRunningTimeInSeconds = (existingProcesses[i].threads[j].curUpTime - existingProcesses[i].threads[j].prevUpTime);
             existingProcesses[i].threads[j].usagePercentage = threadRunningTimeInSeconds / ((cpus[_cpu+1].totalTime - cpus[_cpu+1].idleTime)*1.0);
             cout << "name= " << existingProcesses[i].threads[j].name << ", pid= " << existingProcesses[i].threads[j].pid << ", time= " << threadRunningTimeInSeconds << "s, cpu= " << existingProcesses[i].threads[j].cpu << ", usage= " << existingProcesses[i].threads[j].usagePercentage*100 << "%" << endl;
+            element = {existingProcesses[i].threads[j].name, existingProcesses[i].threads[j].pid,threadRunningTimeInSeconds,existingProcesses[i].threads[j].cpu,existingProcesses[i].threads[j].usagePercentage*100};
+            data.push_back(element);
         }
     }
+    return data;
 }
 
 vector<int> getProcessCPULoad(vector<process>& existingProcesses, std::vector<cpu> cpus, int index)

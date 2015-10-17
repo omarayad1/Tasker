@@ -38,8 +38,23 @@ struct cpu {
     cpu(): totalTime(0), prevTotalTime(0), idleTime(0), prevIdleTime(0) {};
 };
 
+struct cpu_data {
+	string name;
+	unsigned long total;
+	unsigned long idle;
+	float usage;
+};
+
+struct process_data {
+	string name;
+	string pid;
+	double time;
+	int cpu;
+	float usage;
+};
+
 std::vector<cpu> refreshCPU();
-void updateCPUData(std::vector<cpu>& cpus);
+std::vector<cpu_data> updateCPUData(std::vector<cpu>& cpus);
 int getCPU(const string& path);
 
 bool isInteger(const string & s);
@@ -55,7 +70,7 @@ process getProcessInfo(const string& path);
 // Returns an updated list of the existing processes
 vector<process> refreshProcesses();
 
-void updateProcessData(vector<process>& existingProcesses, std::vector<cpu> cpus);
+std::vector<process_data> updateProcessData(vector<process>& existingProcesses, std::vector<cpu> cpus);
 
 vector<int> getProcessCPULoad(vector<process>& existingProcesses, std::vector<cpu> cpus, int index);
 
