@@ -177,7 +177,7 @@ vector<process> refreshProcesses()
     return existingProcesses;
 }
 
-std::vector<process_data> updateProcessData(vector<process>& existingProcesses, std::vector<cpu> cpus)
+std::vector<process_data> updateProcessData(vector<process>& existingProcesses, std::vector<cpu>& cpus)
 {
     struct process_data element;
     std::vector<process_data> data;
@@ -203,7 +203,7 @@ std::vector<process_data> updateProcessData(vector<process>& existingProcesses, 
     return data;
 }
 
-vector<int> getProcessCPULoad(vector<process>& existingProcesses, std::vector<cpu> cpus, int index)
+vector<int> getProcessCPULoad(vector<process>& existingProcesses, std::vector<cpu>& cpus, int index)
 {
     cout << "Name= " << existingProcesses[index].name << endl;
     vector<int> CPULoad;
