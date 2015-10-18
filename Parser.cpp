@@ -50,7 +50,6 @@ std::vector<cpu> refreshCPU() {
         c.totalTime = c.idleTime + t_nonIdle;
         cpus.push_back(c);
     }
-    
     return cpus;
 }
 
@@ -190,27 +189,35 @@ std::vector<process_data> updateProcessData(vector<process>& existingProcesses, 
         for (int j=0; j<existingProcesses[i].threads.size(); j++)
         {
             string path = "/proc/" + existingProcesses[i].pid + "/task/" + existingProcesses[i].threads[j].pid + "/stat";
-            swap(existingProcesses[i].threads[j].curUpTime, existingProcesses[i].threads[j].prevUpTime);
             int _cpu;
+            existingProcesses[i].threads[j].prevUpTime = existingProcesses[i].threads[j].curUpTime;
             existingProcesses[i].threads[j].curUpTime = getUpTime(path, _cpu);
             existingProcesses[i].threads[j].cpu = _cpu;
 
             double threadRunningTimeInSeconds = (existingProcesses[i].threads[j].curUpTime - existingProcesses[i].threads[j].prevUpTime);
-            //cout << "Cur Up Time: " << existingProcesses[i].threads[j].curUpTime << "\tPrev Up Time: " << existingProcesses[i].threads[j].prevUpTime << "\tThread Running Time: " << threadRunningTimeInSeconds << endl;
-            existingProcesses[i].threads[j].usagePercentage = threadRunningTimeInSeconds / ((cpus[_cpu+1].totalTime - cpus[_cpu+1].idleTime)*1.0);
-            //cout << "PID: " << existingProcesses[i].pid <<  "\tCPU Up Time: " << ((cpus[_cpu+1].totalTime - cpus[_cpu+1].idleTime)*1.0);
+            cout << "Process Current Up Time: " << existingProcesses[i].threads[j].curUpTime << "\tProcess Previous Up Time: " << existingProcesses[i].threads[j].prevUpTime << endl;
+
+            double cpuLoadDiff = (cpus[_cpu+1].totalTime - cpus[_cpu+1].idleTime) - (cpus[_cpu+1].prevTotalTime - cpus[_cpu+1].prevIdleTime);
+            if (cpuLoadDiff == 0)
+                existingProcesses[i].threads[j].usagePercentage = 0;
+            else
+                existingProcesses[i].threads[j].usagePercentage = threadRunningTimeInSeconds / (cpuLoadDiff*1.0);
+                
+            cout << "PID: " << existingProcesses[i].threads[j].pid << "\tthreadRunningTimeInSeconds: " << threadRunningTimeInSeconds << "\tCPU Up Time: " << cpuLoadDiff << endl;
             element.name = existingProcesses[i].threads[j].name;
             element.pid = existingProcesses[i].threads[j].pid;
             element.ppid = existingProcesses[i].threads[j].ppid;
             element.time = threadRunningTimeInSeconds;
             element.cpu = existingProcesses[i].threads[j].cpu;
             element.usage = existingProcesses[i].threads[j].usagePercentage*100;
-            //cout << "\tUsage: " << element.usage << endl;
+            cout << "Usage: " << element.usage << endl;
             data.push_back(element);
         }
-        //cout << endl;
+        cout << endl;
     }
-    //cout << endl;
+//Total CPU Time: 38051873         Prev Total CPU Time: 38051873
+
+    cout << endl;
     return data;
 }
 
@@ -238,3 +245,34 @@ vector<int> getProcessCPULoad(vector<process>& existingProcesses, std::vector<cp
     return CPULoad;
 }
 
+int main() {
+    
+    // Called just once when the program starts to run, DO NOT CALL REFRESHCPU EVERY FRAME 
+    // store the vector it returns FOREVEEEER !!!!!!!!!!
+    vector<cpu> existingCPUs = refreshCPU();
+    
+    // Called just once when the program starts to run or when the user refreshes the main page !!!!!!!!!!!!!
+    vector<process> existingProcesses = refreshProcesses();
+    
+    while (true)
+    {
+        // Called in the beginning of the main loop because it updates the existing CPUs !!!!!!!
+        // Pass to the function a vector of "cpu" obtained from refreshCPU()
+        // This vector should be stored FOREVER !!!!!!
+        updateCPUData(existingCPUs);
+        
+        //for (int i=0; i<existingCPUs.size(); i++)
+        //{
+          //  cout << "\nTotal CPU Time: " << existingCPUs[i].totalTime << "\t Prev Total CPU Time: " << existingCPUs[i].prevTotalTime << "\nIdle CPU Time: " << existingCPUs[i].idleTime << "\tPrev Idle CPU Time: " << existingCPUs[i].prevIdleTime << "\nCPU Up Time: " << (((existingCPUs[i].totalTime - existingCPUs[i].idleTime) - (existingCPUs[i].prevTotalTime - existingCPUs[i].prevIdleTime))*1.0);
+        //}
+        //cout << endl;
+        
+        // Called after updateCPUData !!!!!!!!!!
+        updateProcessData(existingProcesses, existingCPUs);
+        string x;
+        cout << "Press Enter to Continue" << endl;
+        cin >> x;
+        //sleep(1);
+    }
+    return 0;
+}
