@@ -126,7 +126,6 @@ thread getThreadInfo(const string& path, const string& ppid)
     do {
         inputFile >> tmp;
         t.name.append(tmp);
-        cout << t.name << endl;
     } while(tmp != "R" &&tmp != "S" &&tmp != "D" &&tmp != "Z" &&tmp != "T" &&tmp != "t" &&tmp != "W" &&tmp != "X" &&tmp != "x" &&tmp != "K" &&tmp != "P");
     t.name.erase(t.name.length()-1, 1);    
         
@@ -194,25 +193,23 @@ std::vector<process_data> updateProcessData(vector<process>& existingProcesses, 
             int _cpu;
             existingProcesses[i].threads[j].curUpTime = getUpTime(path, _cpu);
             existingProcesses[i].threads[j].cpu = _cpu;
-            /*
-            YOUSSEF: Why do we need to divide by hertz? (I assume all inputs from files are of the same type/unit?)
-            */
+
             double threadRunningTimeInSeconds = (existingProcesses[i].threads[j].curUpTime - existingProcesses[i].threads[j].prevUpTime);
-            cout << "Cur Up Time: " << existingProcesses[i].threads[j].curUpTime << "\tPrev Up Time: " << existingProcesses[i].threads[j].prevUpTime << "\tThread Running Time: " << threadRunningTimeInSeconds << endl;
+            //cout << "Cur Up Time: " << existingProcesses[i].threads[j].curUpTime << "\tPrev Up Time: " << existingProcesses[i].threads[j].prevUpTime << "\tThread Running Time: " << threadRunningTimeInSeconds << endl;
             existingProcesses[i].threads[j].usagePercentage = threadRunningTimeInSeconds / ((cpus[_cpu+1].totalTime - cpus[_cpu+1].idleTime)*1.0);
-            cout << "PID: " << existingProcesses[i].pid <<  "\tCPU Up Time: " << ((cpus[_cpu+1].totalTime - cpus[_cpu+1].idleTime)*1.0);
+            //cout << "PID: " << existingProcesses[i].pid <<  "\tCPU Up Time: " << ((cpus[_cpu+1].totalTime - cpus[_cpu+1].idleTime)*1.0);
             element.name = existingProcesses[i].threads[j].name;
             element.pid = existingProcesses[i].threads[j].pid;
             element.ppid = existingProcesses[i].threads[j].ppid;
             element.time = threadRunningTimeInSeconds;
             element.cpu = existingProcesses[i].threads[j].cpu;
             element.usage = existingProcesses[i].threads[j].usagePercentage*100;
-            cout << "\tUsage: " << element.usage << endl;
+            //cout << "\tUsage: " << element.usage << endl;
             data.push_back(element);
         }
-        cout << endl;
+       // cout << endl;
     }
-    cout << endl;
+   // cout << endl;
     return data;
 }
 
@@ -240,6 +237,7 @@ vector<int> getProcessCPULoad(vector<process>& existingProcesses, std::vector<cp
     return CPULoad;
 }
 
+/*
 int main() {
     while (true)
     {
@@ -256,3 +254,4 @@ int main() {
     }
     return 0;
 }
+*/
