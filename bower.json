@@ -18,6 +18,7 @@
   "dependencies": {
     "bootstrap": "~3.3.5",
     "jquery": "~2.1.4",
-    "d3": "~3.5.6"
+    "d3": "~3.5.6",
+    "Flot": "flot#~0.8.3"
   }
 }

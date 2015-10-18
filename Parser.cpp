@@ -38,13 +38,11 @@ bool isInteger(const string & s)
 std::vector<cpu> refreshCPU() {
     ifstream inputFile("/proc/stat");
     std::vector<cpu> cpus;
-    cout << "Get CPUs: " << endl;
-    unsigned long t_user, t_nice, t_system, t_idle, t_iowait, t_irq, t_softirq, t_steal, t_guest, t_guest_nice, t_nonIdle;
+    unsigned long long t_user, t_nice, t_system, t_idle, t_iowait, t_irq, t_softirq, t_steal, t_guest, t_guest_nice, t_nonIdle;
     
     while(true) {
         cpu c;
         inputFile >> c.name;
-        cout << "name: " << c.name << "-" << c.name.substr(0,3) << endl;
         if(c.name.substr(0,3) != "cpu") break;
         inputFile >> t_user >> t_nice >> t_system >> t_idle >> t_iowait >> t_irq >> t_softirq >> t_steal >> t_guest >> t_guest_nice;
         c.idleTime = t_idle + t_iowait;
@@ -58,15 +56,13 @@ std::vector<cpu> refreshCPU() {
 
 std::vector<cpu_data> updateCPUData(std::vector<cpu>& cpus) {
     ifstream inputFile("/proc/stat");
-    unsigned long t_user, t_nice, t_system, t_idle, t_iowait, t_irq, t_softirq, t_steal, t_guest, t_guest_nice, t_nonIdle, idx, delta_total, delta_idle;
+    unsigned long long t_user, t_nice, t_system, t_idle, t_iowait, t_irq, t_softirq, t_steal, t_guest, t_guest_nice, t_nonIdle, idx, delta_total, delta_idle;
     std::vector<cpu_data> data;
     struct cpu_data element;
-    cout << "Core Count: " << cpus.size() << endl;
     
     for (int idx = 0; idx < cpus.size(); idx++) {
         inputFile >> cpus[idx].name;
         
-        cout << "CPU: " << cpus[idx].name << ", ";
         
         cpus[idx].prevIdleTime = cpus[idx].idleTime;
         cpus[idx].prevTotalTime = cpus[idx].totalTime;
@@ -80,12 +76,13 @@ std::vector<cpu_data> updateCPUData(std::vector<cpu>& cpus) {
         delta_total = cpus[idx].totalTime - cpus[idx].prevTotalTime;
         delta_idle = cpus[idx].idleTime - cpus[idx].prevIdleTime;
         
-        cout << "total: " << delta_total << ", idle: " << delta_idle << ", ";
         
         cpus[idx].usagePercentage = delta_total == 0 ? 0 : (delta_total - delta_idle)/(delta_total*1.0);
         
-        cout << "percentage: " << cpus[idx].usagePercentage * 100 << "%" << endl;
-        element = {.name=cpus[idx].name, .total=delta_total, .idle=delta_idle, .usage=cpus[idx].usagePercentage * 100};
+        element.name=cpus[idx].name;
+        element.total=delta_total;
+        element.idle=delta_idle;
+        element.usage=cpus[idx].usagePercentage * 100;
         data.push_back(element);
     }
     return data;
@@ -107,15 +104,13 @@ float getUpTime(const string& path, int& cpu)
     do {
         x++;
         inputFile >> tmp;
-        // std::cout <<  tmp << std::endl;
     } while(tmp != "R" &&tmp != "S" &&tmp != "D" &&tmp != "Z" &&tmp != "T" &&tmp != "t" &&tmp != "W" &&tmp != "X" &&tmp != "x" &&tmp != "K" &&tmp != "P");
         
     for (int i=0; i<10; i++) inputFile.ignore(10000, ' ');
-    unsigned long utime, stime, cutime, cstime;
+    unsigned long long utime, stime, cutime, cstime;
     inputFile >> utime >> stime >> cutime >> cstime;
     for (int i=0; i<23; i++) inputFile.ignore(10000, ' ');
     inputFile >> cpu;
-    cout << "CPU: " << cpu << endl;
     return utime + stime + cutime + cstime;
 }
 
@@ -126,15 +121,16 @@ int getCPU(const string& path)
 }
 
 // Parse the thread stat file and get the relevant information needed
-thread getThreadInfo(const string& path)
+thread getThreadInfo(const string& path, const string& ppid)
 {
     thread t;
     ifstream inputFile((path + string("/stat")).c_str());
     inputFile >> t.pid >> t.name; //are these the first 2 entries in the file???
     for (int i=0; i<10; i++) inputFile.ignore(10000, ' ');
-    unsigned long utime, stime, cutime, cstime;
+    unsigned long long utime, stime, cutime, cstime;
     inputFile >> utime >> stime >> cutime >> cstime;
     t.curUpTime = utime + stime + cutime + cstime;
+    t.ppid = ppid;
     return t;
 }
 
@@ -152,7 +148,7 @@ process getProcessInfo(const string& path)
     pDir = opendir (taskPath.c_str());
     while ((pDirent = readdir(pDir)) != NULL) 
         if (isInteger(pDirent->d_name)) 
-            info.threads.push_back(getThreadInfo((taskPath + string(pDirent->d_name)).c_str()));
+            info.threads.push_back(getThreadInfo((taskPath + string(pDirent->d_name)).c_str(), info.pid));
             
     return info;
 }
@@ -183,6 +179,7 @@ std::vector<process_data> updateProcessData(vector<process>& existingProcesses, 
     std::vector<process_data> data;
     for (int i=0; i<existingProcesses.size(); i++)
     {
+        /*update threads before looping over them*/
         for (int j=0; j<existingProcesses[i].threads.size(); j++)
         {
             string path = "/proc/" + existingProcesses[i].pid + "/task/" + existingProcesses[i].threads[j].pid + "/stat";
@@ -195,18 +192,28 @@ std::vector<process_data> updateProcessData(vector<process>& existingProcesses, 
             */
             double threadRunningTimeInSeconds = (existingProcesses[i].threads[j].curUpTime - existingProcesses[i].threads[j].prevUpTime);
             existingProcesses[i].threads[j].usagePercentage = threadRunningTimeInSeconds / ((cpus[_cpu+1].totalTime - cpus[_cpu+1].idleTime)*1.0);
-            cout << "name= " << existingProcesses[i].threads[j].name << ", pid= " << existingProcesses[i].threads[j].pid << ", time= " << threadRunningTimeInSeconds << "s, cpu= " << existingProcesses[i].threads[j].cpu << ", usage= " << existingProcesses[i].threads[j].usagePercentage*100 << "%" << endl;
-            element = {existingProcesses[i].threads[j].name, existingProcesses[i].threads[j].pid,threadRunningTimeInSeconds,existingProcesses[i].threads[j].cpu,existingProcesses[i].threads[j].usagePercentage*100};
+            element.name = existingProcesses[i].threads[j].name;
+            element.pid = existingProcesses[i].threads[j].pid;
+            element.ppid = existingProcesses[i].threads[j].ppid;
+            element.time = threadRunningTimeInSeconds;
+            element.cpu = existingProcesses[i].threads[j].cpu;
+            element.usage = existingProcesses[i].threads[j].usagePercentage*100;
             data.push_back(element);
         }
     }
     return data;
 }
 
-vector<int> getProcessCPULoad(vector<process>& existingProcesses, std::vector<cpu>& cpus, int index)
+vector<int> getProcessCPULoad(vector<process>& existingProcesses, std::vector<cpu>& cpus, string pid)
 {
-    cout << "Name= " << existingProcesses[index].name << endl;
     vector<int> CPULoad;
+    int index;
+    for (int i=0; i<existingProcesses.size(); i++){
+        if (existingProcesses[i].pid == pid) {
+            index = i;
+            break;
+        }
+    }
     for (int i = 0; i < cpus.size(); i++) {
         double totalProcessCoreTime = 0;
         for (int j = 0; j < existingProcesses[index].threads.size(); j++) {

@@ -17,10 +17,10 @@ extern int hertz;
 struct thread{
     string name;
     string pid;
-    
+    string ppid;
     int cpu;
     float usagePercentage;
-    unsigned long curUpTime, prevUpTime;
+    unsigned long long curUpTime, prevUpTime;
     thread():curUpTime(0), prevUpTime(0){};
 };
 
@@ -34,20 +34,21 @@ struct process{
 struct cpu {
     string name;
     float usagePercentage;
-    unsigned long totalTime, prevTotalTime, idleTime, prevIdleTime;
+    unsigned long long totalTime, prevTotalTime, idleTime, prevIdleTime;
     cpu(): totalTime(0), prevTotalTime(0), idleTime(0), prevIdleTime(0) {};
 };
 
 struct cpu_data {
 	string name;
-	unsigned long total;
-	unsigned long idle;
+	unsigned long long total;
+	unsigned long long idle;
 	float usage;
 };
 
 struct process_data {
 	string name;
 	string pid;
+    string ppid;
 	double time;
 	int cpu;
 	float usage;
@@ -63,16 +64,16 @@ bool isInteger(const string & s);
 float getUpTime(const string& path, int& cpu);
 
 // Parse the thread stat file and get the relevant information needed
-thread getThreadInfo(const string& path);
+thread getThreadInfo(const string& path, const string& ppid);
 
 process getProcessInfo(const string& path);
 
 // Returns an updated list of the existing processes
 vector<process> refreshProcesses();
 
-std::vector<process_data> updateProcessData(vector<process>& existingProcesses, std::vector<cpu> cpus);
+std::vector<process_data> updateProcessData(vector<process>& existingProcesses, std::vector<cpu>& cpus);
 
-vector<int> getProcessCPULoad(vector<process>& existingProcesses, std::vector<cpu> cpus, int index);
+vector<int> getProcessCPULoad(vector<process>& existingProcesses, std::vector<cpu>& cpus, string pid);
 
 
 #endif

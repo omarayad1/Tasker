@@ -846,6 +846,10 @@ class thread(_object):
     __swig_getmethods__["pid"] = _Parser.thread_pid_get
     if _newclass:
         pid = _swig_property(_Parser.thread_pid_get, _Parser.thread_pid_set)
+    __swig_setmethods__["ppid"] = _Parser.thread_ppid_set
+    __swig_getmethods__["ppid"] = _Parser.thread_ppid_get
+    if _newclass:
+        ppid = _swig_property(_Parser.thread_ppid_get, _Parser.thread_ppid_set)
     __swig_setmethods__["cpu"] = _Parser.thread_cpu_set
     __swig_getmethods__["cpu"] = _Parser.thread_cpu_get
     if _newclass:
@@ -999,6 +1003,10 @@ class process_data(_object):
     __swig_getmethods__["pid"] = _Parser.process_data_pid_get
     if _newclass:
         pid = _swig_property(_Parser.process_data_pid_get, _Parser.process_data_pid_set)
+    __swig_setmethods__["ppid"] = _Parser.process_data_ppid_set
+    __swig_getmethods__["ppid"] = _Parser.process_data_ppid_get
+    if _newclass:
+        ppid = _swig_property(_Parser.process_data_ppid_get, _Parser.process_data_ppid_set)
     __swig_setmethods__["time"] = _Parser.process_data_time_set
     __swig_getmethods__["time"] = _Parser.process_data_time_get
     if _newclass:
@@ -1044,8 +1052,8 @@ def getUpTime(path, cpu):
     return _Parser.getUpTime(path, cpu)
 getUpTime = _Parser.getUpTime
 
-def getThreadInfo(path):
-    return _Parser.getThreadInfo(path)
+def getThreadInfo(path, ppid):
+    return _Parser.getThreadInfo(path, ppid)
 getThreadInfo = _Parser.getThreadInfo
 
 def getProcessInfo(path):
@@ -1060,8 +1068,8 @@ def updateProcessData(existingProcesses, cpus):
     return _Parser.updateProcessData(existingProcesses, cpus)
 updateProcessData = _Parser.updateProcessData
 
-def getProcessCPULoad(existingProcesses, cpus, index):
-    return _Parser.getProcessCPULoad(existingProcesses, cpus, index)
+def getProcessCPULoad(existingProcesses, cpus, pid):
+    return _Parser.getProcessCPULoad(existingProcesses, cpus, pid)
 getProcessCPULoad = _Parser.getProcessCPULoad
 # This file is compatible with both classic and new-style classes.
 
