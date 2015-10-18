@@ -238,25 +238,3 @@ vector<int> getProcessCPULoad(vector<process>& existingProcesses, std::vector<cp
     return CPULoad;
 }
 
-/*
-int main() {
-    while (true)
-    {
-	cout << "1" << endl;
-        vector<process> existingProcesses = refreshProcesses();
-cout << "2" << endl;
-        vector<cpu> existingCPUs = refreshCPU();
-cout << "3" << endl;
-        vector<cpu_data> cpuData = updateCPUData(existingCPUs);
-cout << "4" << endl;
-        updateProcessData(existingProcesses, existingCPUs);
-        //updateProcessData(existingProcesses);
-        
-        string x;
-        cout << "Press Enter to Continue" << endl;
-        cin >> x;
-        //sleep(1);
-    }
-    return 0;
-}
-*/
