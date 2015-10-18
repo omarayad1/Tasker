@@ -46,7 +46,7 @@ int main() {
         sleep(1);
     }
     
-    std::vector<int> cpu_load = getProcessCPULoad(existingProcesses, existingCPU, 5);
+    std::vector<int> cpu_load = getProcessCPULoad(existingProcesses, existingCPU, "5");
     for (int i = 0; i < cpu_load.size(); i++) {
         cout << "cpu" << i << ": " << cpu_load[i] << "%" << endl;
     }

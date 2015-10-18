@@ -92,14 +92,9 @@ std::vector<cpu_data> updateCPUData(std::vector<cpu>& cpus) {
 float getUpTime(const string& path, int& cpu)
 {
     ifstream inputFile(path.c_str());
+    if (inputFile.fail())
+        return 0.0;
     string tmp;
-    /*
-    NOTE: We had a bug here. Some process names are like '(vfs-worker {"pi)' (they do have spaces, and therefore, we get the wrong time, or cpu).
-    Therefore, a workaround is to match the status character (in pos 3 -- http://man7.org/linux/man-pages/man5/proc.5.html),
-    Thus, we will keep parsing untill we hit the status character, and then fallback to the original way Youssef came up with.
-    (Also, we will ignore 10 positions )
-    - Yehia & Safaa
-    */
     int x = 0;
     do {
         x++;
@@ -125,10 +120,21 @@ thread getThreadInfo(const string& path, const string& ppid)
 {
     thread t;
     ifstream inputFile((path + string("/stat")).c_str());
-    inputFile >> t.pid >> t.name; //are these the first 2 entries in the file???
+    
+    inputFile >> t.pid;
+    string tmp;
+    do {
+        inputFile >> tmp;
+        t.name.append(tmp);
+    } while(tmp != "R" &&tmp != "S" &&tmp != "D" &&tmp != "Z" &&tmp != "T" &&tmp != "t" &&tmp != "W" &&tmp != "X" &&tmp != "x" &&tmp != "K" &&tmp != "P");
+    t.name.erase(t.name.length()-1, 1);    
+        
     for (int i=0; i<10; i++) inputFile.ignore(10000, ' ');
     unsigned long long utime, stime, cutime, cstime;
     inputFile >> utime >> stime >> cutime >> cstime;
+    for (int i=0; i<23; i++) inputFile.ignore(10000, ' ');
+    inputFile >> t.cpu;
+
     t.curUpTime = utime + stime + cutime + cstime;
     t.ppid = ppid;
     return t;
@@ -149,7 +155,8 @@ process getProcessInfo(const string& path)
     while ((pDirent = readdir(pDir)) != NULL) 
         if (isInteger(pDirent->d_name)) 
             info.threads.push_back(getThreadInfo((taskPath + string(pDirent->d_name)).c_str(), info.pid));
-            
+  
+    closedir (pDir);
     return info;
 }
 
@@ -187,20 +194,23 @@ std::vector<process_data> updateProcessData(vector<process>& existingProcesses, 
             int _cpu;
             existingProcesses[i].threads[j].curUpTime = getUpTime(path, _cpu);
             existingProcesses[i].threads[j].cpu = _cpu;
-            /*
-            YOUSSEF: Why do we need to divide by hertz? (I assume all inputs from files are of the same type/unit?)
-            */
+
             double threadRunningTimeInSeconds = (existingProcesses[i].threads[j].curUpTime - existingProcesses[i].threads[j].prevUpTime);
+            //cout << "Cur Up Time: " << existingProcesses[i].threads[j].curUpTime << "\tPrev Up Time: " << existingProcesses[i].threads[j].prevUpTime << "\tThread Running Time: " << threadRunningTimeInSeconds << endl;
             existingProcesses[i].threads[j].usagePercentage = threadRunningTimeInSeconds / ((cpus[_cpu+1].totalTime - cpus[_cpu+1].idleTime)*1.0);
+            //cout << "PID: " << existingProcesses[i].pid <<  "\tCPU Up Time: " << ((cpus[_cpu+1].totalTime - cpus[_cpu+1].idleTime)*1.0);
             element.name = existingProcesses[i].threads[j].name;
             element.pid = existingProcesses[i].threads[j].pid;
             element.ppid = existingProcesses[i].threads[j].ppid;
             element.time = threadRunningTimeInSeconds;
             element.cpu = existingProcesses[i].threads[j].cpu;
             element.usage = existingProcesses[i].threads[j].usagePercentage*100;
+            //cout << "\tUsage: " << element.usage << endl;
             data.push_back(element);
         }
+        //cout << endl;
     }
+    //cout << endl;
     return data;
 }
 
@@ -227,3 +237,26 @@ vector<int> getProcessCPULoad(vector<process>& existingProcesses, std::vector<cp
     }
     return CPULoad;
 }
+
+/*
+int main() {
+    while (true)
+    {
+	cout << "1" << endl;
+        vector<process> existingProcesses = refreshProcesses();
+cout << "2" << endl;
+        vector<cpu> existingCPUs = refreshCPU();
+cout << "3" << endl;
+        vector<cpu_data> cpuData = updateCPUData(existingCPUs);
+cout << "4" << endl;
+        updateProcessData(existingProcesses, existingCPUs);
+        //updateProcessData(existingProcesses);
+        
+        string x;
+        cout << "Press Enter to Continue" << endl;
+        cin >> x;
+        //sleep(1);
+    }
+    return 0;
+}
+*/
