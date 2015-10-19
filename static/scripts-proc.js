@@ -1,6 +1,6 @@
 var data = [];
 var totalPoints = 5;
-var updateInterval = 2000;
+var updateInterval = 5000;
 var now = new Date().getTime();
  
 function GetData() {
@@ -14,7 +14,7 @@ function GetData() {
                     var temp = [now += updateInterval, y]; //data format [x, y]
                     data.push(temp);
                     console.log(data);
-                    setTimeout(requests,100);
+                    setTimeout(requests,5000);
                 }
             );
         }

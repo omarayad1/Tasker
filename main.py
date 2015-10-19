@@ -46,20 +46,21 @@ def get_one_process_load(pid,cpu_no):
 	threads = []
 	cpu_data = refreshCPU()
 	proc_data = refreshProcesses()
+	proc_data = ProcVector(proc_data)
 	updateCPUData(CpuVector(cpu_data))
-	updateProcessData(ProcVector(proc_data), CpuVector(cpu_data))
+	updateProcessData(proc_data, CpuVector(cpu_data))
 	time.sleep(1)
 	updateCPUData(CpuVector(cpu_data))
-	data = updateProcessData(ProcVector(proc_data), CpuVector(cpu_data))
-	for el in data:
-		if el.ppid == pid and el.cpu == cpu_no:
-			print int(el.usage)
-			threads.append({"name": el.name, "pid": el.pid, "usage": el.usage%100, "cpu": el.cpu})
-	if len(threads) == 0:
-		return jsonify({"usage":0})
-	if cpu_no == 0:
-		return jsonify({"usage": sum([thread['usage'] for thread in threads])/float(len(refreshCPU())-1)})	
-	return jsonify({"usage": sum([thread['usage'] for thread in threads])})
+	updateProcessData(proc_data, CpuVector(cpu_data))
+	usage = 0
+	for el in proc_data:
+		if el.pid == pid:
+			if cpu_no == 0:
+				usage = sum([thread.usagePercentage for thread in el.threads])/4.0
+			else:
+				usage = sum([thread.usagePercentage for thread in el.threads if thread.cpu == cpu_no])
+			
+	return jsonify({"usage":usage*100000})
 
 @app.route("/cpu")
 def get_cpus(output=0):

@@ -185,7 +185,6 @@ std::vector<process_data> updateProcessData(vector<process>& existingProcesses, 
     std::vector<process_data> data;
     for (int i=0; i<existingProcesses.size(); i++)
     {
-        /*update threads before looping over them*/
         for (int j=0; j<existingProcesses[i].threads.size(); j++)
         {
             string path = "/proc/" + existingProcesses[i].pid + "/task/" + existingProcesses[i].threads[j].pid + "/stat";
@@ -204,6 +203,7 @@ std::vector<process_data> updateProcessData(vector<process>& existingProcesses, 
                 existingProcesses[i].threads[j].usagePercentage = threadRunningTimeInSeconds / (cpuLoadDiff*1.0);
                 
             cout << "PID: " << existingProcesses[i].threads[j].pid << "\tthreadRunningTimeInSeconds: " << threadRunningTimeInSeconds << "\tCPU Up Time: " << cpuLoadDiff << endl;
+            cout << "CPU: " << _cpu<<endl; 
             element.name = existingProcesses[i].threads[j].name;
             element.pid = existingProcesses[i].threads[j].pid;
             element.ppid = existingProcesses[i].threads[j].ppid;
